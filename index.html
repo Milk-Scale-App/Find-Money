@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fund Money - आपकी कमाई</title>
+    
+    <!-- Firebase 8.x Version (Kodular Compatible) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- 1. Login Page -->
+    <div id="login-page" class="page active">
+        <div class="auth-container">
+            <h2 class="auth-header">Fund Money</h2>
+            <p style="text-align: center; color: #666; margin-bottom: 20px;">
+                अपना अकाउंट बनाएं या लॉगिन करें
+            </p>
+            
+            <input type="email" id="login-email" placeholder="ईमेल एड्रेस" class="auth-input">
+            <input type="password" id="login-password" placeholder="पासवर्ड" class="auth-input">
+            
+            <button class="auth-btn" onclick="loginWithEmailPassword()">लॉगिन करें</button>
+            
+            <div class="divider">
+                <span>या</span>
+            </div>
+            
+            <button class="google-btn" onclick="signInWithGoogle()">
+                Google के साथ जारी रखें
+            </button>
+            
+            <p style="text-align: center;">
+                <a onclick="showPage('signup-page')" class="auth-link">नया अकाउंट बनाएँ</a>
+            </p>
+        </div>
+    </div>
+
+    <!-- 2. Sign Up Page -->
+    <div id="signup-page" class="page hidden">
+        <div class="auth-container">
+            <h2 class="auth-header">अकाउंट बनाएं</h2>
+            
+            <input type="text" id="signup-name" placeholder="आपका नाम" class="auth-input">
+            <input type="email" id="signup-email" placeholder="ईमेल एड्रेस" class="auth-input">
+            <input type="password" id="signup-password" placeholder="पासवर्ड (कम से कम 6 अक्षर)" class="auth-input">
+            <input type="password" id="signup-confirm-password" placeholder="पासवर्ड कन्फर्म करें" class="auth-input">
+            
+            <button class="auth-btn" onclick="signUpWithEmailPassword()">अकाउंट बनाएं</button>
+            
+            <div class="divider">
+                <span>या</span>
+            </div>
+            
+            <button class="google-btn" onclick="signInWithGoogle()">
+                Google के साथ साइनअप करें
+            </button>
+            
+            <p style="text-align: center;">
+                <a onclick="showPage('login-page')" class="auth-link">पहले से अकाउंट है? लॉगिन करें</a>
+            </p>
+            
+            <p id="signup-message" class="error-message hidden"></p>
+        </div>
+    </div>
+
+    <!-- 3. Setup Password Page -->
+    <div id="setup-password-page" class="page hidden">
+        <div class="password-popup-overlay">
+            <div class="password-popup">
+                <h2 class="auth-header">🔒 पासवर्ड सेटअप</h2>
+                <div class="auth-container">
+                    <p style="text-align: center; color: #666; margin-bottom: 20px;">
+                        सुरक्षा के लिए कृपया अपना पासवर्ड सेट करें
+                    </p>
+                    
+                    <input type="password" id="setup-password" placeholder="नया पासवर्ड (कम से कम 6 अक्षर)" class="auth-input">
+                    <input type="password" id="setup-confirm-password" placeholder="पासवर्ड कन्फर्म करें" class="auth-input">
+                    
+                    <button class="auth-btn" onclick="setupPassword()">पासवर्ड सेव करें</button>
+                    
+                    <p id="setup-password-message" class="error-message hidden"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Dashboard Page -->
+    <div id="dashboard-page" class="page hidden">
+        <div class="top-bar">
+            <div class="balance-card">
+                <div class="balance-label">आपका बैलेंस</div>
+                <div class="balance-amount">₹ <span id="current-balance">0</span></div>
+                <button class="add-money-btn" onclick="showPage('add-money-page')">+ Add Money</button>
+            </div>
+            
+            <div class="profile-section">
+                <button class="profile-btn" onclick="showPage('profile-page')">👤</button>
+                <button class="logout-btn" onclick="logout()">लॉगआउट</button>
+            </div>
+        </div>
+
+        <!-- Game Area -->
+        <div class="game-container">
+            <div class="timer-section">
+                <div id="timer">30.00s</div>
+                <div class="progress-bar">
+                    <div id="progress-bar"></div>
+                </div>
+            </div>
+            
+            <div class="result-display">
+                <div id="result-box">गेम शुरू करें</div>
+            </div>
+
+            <!-- Result History -->
+            <div class="history-section">
+                <h3>आखिरी रिजल्ट</h3>
+                <div id="result-history" class="history-strip">
+                    <!-- Results will appear here -->
+                </div>
+            </div>
+
+            <!-- Betting Controls -->
+            <div class="betting-controls">
+                <div class="amount-controls">
+                    <button class="amount-btn" onclick="setBetAmount(10)">Min</button>
+                    <button class="amount-btn" onclick="adjustBetAmount(-10)">-10</button>
+                    <input type="number" id="bet-amount" value="50" min="10" max="10000" class="bet-input">
+                    <button class="amount-btn" onclick="adjustBetAmount(10)">+10</button>
+                    <button class="amount-btn" onclick="setBetAmount(10000)">Max</button>
+                </div>
+                
+                <div class="color-buttons">
+                    <button class="color-btn green-btn" onclick="placeBet('green')" id="bet-btn-green">
+                        हरा 2x
+                        <span class="bet-badge" id="bet-badge-green"></span>
+                    </button>
+                    <button class="color-btn blue-btn" onclick="placeBet('blue')" id="bet-btn-blue">
+                        नीला 2x
+                        <span class="bet-badge" id="bet-badge-blue"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notification Panel -->
+        <div id="notification-panel" class="hidden">
+            <div class="notification-content">
+                <h3>📢 सूचनाएं</h3>
+                <div id="notification-list">
+                    <!-- Notifications will appear here -->
+                </div>
+                <button class="auth-btn" onclick="toggleNotificationPanel()" style="background: #f44336;">बंद करें</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. Profile Page -->
+    <div id="profile-page" class="page hidden">
+        <div class="auth-container">
+            <h2 class="auth-header">👤 आपकी प्रोफ़ाइल</h2>
+            
+            <div class="profile-info">
+                <div class="info-item">
+                    <label>नाम:</label>
+                    <span id="profile-name">-</span>
+                </div>
+                <div class="info-item">
+                    <label>ईमेल:</label>
+                    <span id="profile-email">-</span>
+                </div>
+                <div class="info-item">
+                    <label>यूज़र ID:</label>
+                    <span id="profile-user-id">-</span>
+                </div>
+                <div class="info-item">
+                    <label>बैलेंस:</label>
+                    <span id="profile-balance">₹ 0</span>
+                </div>
+            </div>
+
+            <!-- Password Section -->
+            <div style="margin: 20px 0; padding: 15px; background: #f5f5f5; border-radius: 8px;">
+                <h3 style="margin-top: 0; color: #3f51b5;">🔒 पासवर्ड</h3>
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                    <input type="password" id="display-password" value="••••••••" readonly 
+                           style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px; background: white;">
+                    <button onclick="togglePasswordVisibility()" style="background: none; border: none; font-size: 1.2em; cursor: pointer;">
+                        👁️
+                    </button>
+                </div>
+                <button onclick="togglePasswordChangeSection()" class="auth-btn" style="background: #ff9800;">
+                    पासवर्ड बदलें
+                </button>
+                
+                <div id="password-change-fields" class="hidden" style="margin-top: 15px;">
+                    <input type="password" id="new-password" placeholder="नया पासवर्ड" class="auth-input">
+                    <input type="password" id="confirm-new-password" placeholder="पासवर्ड कन्फर्म करें" class="auth-input">
+                    <button onclick="changePassword()" class="auth-btn" style="background: #4CAF50;">पासवर्ड अपडेट करें</button>
+                    <p id="password-change-message" class="error-message hidden"></p>
+                </div>
+            </div>
+
+            <!-- Bank Details -->
+            <div style="margin: 20px 0; padding: 15px; background: #e8f5e9; border-radius: 8px;">
+                <h3 style="margin-top: 0; color: #4CAF50;">🏦 बैंक डिटेल्स</h3>
+                <input type="text" id="account-holder" placeholder="खाताधारक का नाम" class="auth-input">
+                <input type="text" id="account-number" placeholder="बैंक अकाउंट नंबर" class="auth-input">
+                <input type="text" id="ifsc-code" placeholder="IFSC कोड" class="auth-input">
+                <input type="text" id="bank-name" placeholder="बैंक का नाम" class="auth-input">
+                <button onclick="saveBankDetails()" class="auth-btn" style="background: #4CAF50;">बैंक डिटेल्स सेव करें</button>
+                <p id="bank-details-message" class="error-message hidden"></p>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="action-buttons">
+                <button class="action-btn deposit" onclick="showPage('add-money-page')">
+                    💰 पैसा जोड़ें
+                </button>
+                <button class="action-btn withdraw" onclick="showPage('withdraw-page')">
+                    💸 पैसा निकालें
+                </button>
+            </div>
+
+            <button class="back-btn" onclick="showPage('dashboard-page')">
+                ← डैशबोर्ड पर वापस
+            </button>
+        </div>
+    </div>
+
+    <!-- 6. Add Money Page -->
+    <div id="add-money-page" class="page hidden">
+        <div class="auth-container">
+            <h2 class="auth-header">💰 पैसा जोड़ें</h2>
+            
+            <div class="amount-options">
+                <button class="amount-option" onclick="selectAmount(100)">₹100</button>
+                <button class="amount-option" onclick="selectAmount(500)">₹500</button>
+                <button class="amount-option" onclick="selectAmount(1000)">₹1000</button>
+                <button class="amount-option" onclick="selectAmount(2000)">₹2000</button>
+            </div>
+            
+            <input type="number" id="add-amount" placeholder="कस्टम राशि" class="auth-input">
+            
+            <div class="payment-info">
+                <p><strong>UPI ID:</strong> fundmoney@upi</p>
+                <p style="font-size: 0.9em; color: #666;">
+                    UPI पर पेमेंट करें और ट्रांजैक्शन ID दर्ज करें
+                </p>
+            </div>
+            
+            <input type="text" id="transaction-id" placeholder="UTR/Transaction ID" class="auth-input">
+            
+            <button class="auth-btn" onclick="submitAddMoneyRequest()">अनुरोध भेजें</button>
+            <p id="add-money-message" class="error-message hidden"></p>
+            
+            <button class="back-btn" onclick="showPage('dashboard-page')">
+                ← वापस जाएं
+            </button>
+        </div>
+    </div>
+
+    <!-- 7. Withdraw Page -->
+    <div id="withdraw-page" class="page hidden">
+        <div class="auth-container">
+            <h2 class="auth-header">💸 पैसा निकालें</h2>
+            
+            <div class="amount-options">
+                <button class="amount-option" onclick="selectWithdrawAmount(100)">₹100</button>
+                <button class="amount-option" onclick="selectWithdrawAmount(500)">₹500</button>
+                <button class="amount-option" onclick="selectWithdrawAmount(1000)">₹1000</button>
+                <button class="amount-option" onclick="selectWithdrawAmount(2000)">₹2000</button>
+            </div>
+            
+            <input type="number" id="withdraw-amount" placeholder="निकासी राशि" class="auth-input">
+            
+            <button class="auth-btn" onclick="submitWithdrawRequest()">निकासी अनुरोध</button>
+            <p id="withdraw-message" class="error-message hidden"></p>
+            
+            <button class="back-btn" onclick="showPage('dashboard-page')">
+                ← वापस जाएं
+            </button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
