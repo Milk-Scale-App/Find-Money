@@ -61,6 +61,8 @@ async function signUpWithEmailPassword() {
     }
     
     try {
+        showMessage('signup-message', 'अकाउंट बनाया जा रहा है...', 'success');
+        
         // Create user in Firebase Auth
         const userCredential = await auth.createUserWithEmailAndPassword(email, password);
         const user = userCredential.user;
@@ -170,7 +172,20 @@ function startGameListener() {
         if (doc.exists) {
             const gameData = doc.data();
             updateGameUI(gameData);
+        } else {
+            // Initialize game if not exists
+            initializeGame();
         }
+    });
+}
+
+// Initialize game
+function initializeGame() {
+    db.collection(GAME_CONTROLS).doc('currentGame').set({
+        isRunning: false,
+        result: null,
+        endTime: null,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
 }
 
@@ -179,6 +194,8 @@ function updateGameUI(gameData) {
     const timerElement = document.getElementById('timer');
     const progressFill = document.getElementById('progress-fill');
     const resultText = document.getElementById('result-text');
+    
+    if (!timerElement || !progressFill || !resultText) return;
     
     if (gameData.isRunning) {
         const timeLeft = Math.max(0, (gameData.endTime - Date.now()) / 1000);
@@ -338,9 +355,15 @@ async function processBetResult(winningColor) {
 
 // Add money request
 async function submitAddMoneyRequest() {
-    const amount = parseInt(document.getElementById('custom-amount').value) || 
-                   parseInt(document.querySelector('.amount-option.active')?.getAttribute('data-amount'));
+    const amountInput = document.getElementById('add-amount');
     const transactionId = document.getElementById('transaction-id').value.trim();
+    
+    if (!amountInput) {
+        alert('Amount input not found');
+        return;
+    }
+    
+    const amount = parseInt(amountInput.value);
     
     if (!amount || amount < 100) {
         showMessage('add-money-message', 'कृपया ₹100 या अधिक की राशि चुनें', 'error');
@@ -373,8 +396,14 @@ async function submitAddMoneyRequest() {
 
 // Withdraw request
 async function submitWithdrawRequest() {
-    const amount = parseInt(document.getElementById('withdraw-amount').value) || 
-                   parseInt(document.querySelector('.amount-option.active')?.getAttribute('data-amount'));
+    const amountInput = document.getElementById('withdraw-amount');
+    
+    if (!amountInput) {
+        alert('Withdraw amount input not found');
+        return;
+    }
+    
+    const amount = parseInt(amountInput.value);
     
     if (!amount || amount < 100) {
         showMessage('withdraw-message', 'कृपया ₹100 या अधिक की राशि चुनें', 'error');
@@ -432,21 +461,31 @@ async function updateUserBalance() {
 // Update UI elements
 function updateUI() {
     // Update balance displays
-    document.getElementById('current-balance').textContent = userBalance;
-    if (document.getElementById('profile-balance')) {
-        document.getElementById('profile-balance').textContent = userBalance;
+    const currentBalance = document.getElementById('current-balance');
+    if (currentBalance) {
+        currentBalance.textContent = userBalance;
+    }
+    
+    const profileBalance = document.getElementById('profile-balance');
+    if (profileBalance) {
+        profileBalance.textContent = userBalance;
     }
     
     // Update profile info
     if (userData) {
-        if (document.getElementById('profile-name')) {
-            document.getElementById('profile-name').textContent = userData.name;
+        const profileName = document.getElementById('profile-name');
+        if (profileName) {
+            profileName.textContent = userData.name;
         }
-        if (document.getElementById('profile-email')) {
-            document.getElementById('profile-email').textContent = userData.email;
+        
+        const profileEmail = document.getElementById('profile-email');
+        if (profileEmail) {
+            profileEmail.textContent = userData.email;
         }
-        if (document.getElementById('profile-user-id')) {
-            document.getElementById('profile-user-id').textContent = userData.userId;
+        
+        const profileUserId = document.getElementById('profile-user-id');
+        if (profileUserId) {
+            profileUserId.textContent = userData.userId;
         }
     }
 }
@@ -468,6 +507,8 @@ function updateBettingUI() {
 // Add result to history
 function addToHistory(result) {
     const historyContainer = document.getElementById('result-history');
+    if (!historyContainer) return;
+    
     const historyItem = document.createElement('div');
     historyItem.className = `history-item ${result}`;
     historyItem.textContent = result === 'green' ? 'ह' : 'न';
@@ -530,11 +571,23 @@ function generateUserId() {
 
 // Page navigation
 function showPage(pageId) {
+    console.log('Showing page:', pageId);
+    
+    // Hide all pages
     document.querySelectorAll('.page').forEach(page => {
         page.classList.add('hidden');
     });
-    document.getElementById(pageId).classList.remove('hidden');
     
+    // Show the requested page
+    const targetPage = document.getElementById(pageId);
+    if (targetPage) {
+        targetPage.classList.remove('hidden');
+        console.log('Successfully showed page:', pageId);
+    } else {
+        console.error('Page not found:', pageId);
+    }
+    
+    // Update UI if going to dashboard
     if (pageId === 'dashboard-page') {
         updateUI();
         updateBettingUI();
@@ -544,25 +597,145 @@ function showPage(pageId) {
 // Bet amount controls
 function adjustBetAmount(change) {
     const input = document.getElementById('bet-amount');
+    if (!input) return;
+    
     let current = parseInt(input.value) || 50;
     current = Math.max(10, Math.min(10000, current + change));
     input.value = current;
 }
 
+function setBetAmount(amount) {
+    const input = document.getElementById('bet-amount');
+    if (input) {
+        input.value = amount;
+    }
+}
+
 function selectAmount(amount) {
-    document.getElementById('custom-amount').value = amount;
+    const input = document.getElementById('add-amount');
+    if (input) {
+        input.value = amount;
+    }
+    
+    // Remove active class from all amount options
     document.querySelectorAll('.amount-option').forEach(btn => {
         btn.classList.remove('active');
     });
-    event.target.classList.add('active');
+    
+    // Add active class to clicked button
+    if (event && event.target) {
+        event.target.classList.add('active');
+    }
 }
 
 function selectWithdrawAmount(amount) {
-    document.getElementById('withdraw-amount').value = amount;
+    const input = document.getElementById('withdraw-amount');
+    if (input) {
+        input.value = amount;
+    }
+    
+    // Remove active class from all amount options
     document.querySelectorAll('.amount-option').forEach(btn => {
         btn.classList.remove('active');
     });
-    event.target.classList.add('active');
+    
+    // Add active class to clicked button
+    if (event && event.target) {
+        event.target.classList.add('active');
+    }
+}
+
+// Password visibility toggle
+function togglePasswordVisibility() {
+    const passwordInput = document.getElementById('display-password');
+    if (passwordInput) {
+        if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+        } else {
+            passwordInput.type = 'password';
+        }
+    }
+}
+
+// Password change section toggle
+function togglePasswordChangeSection() {
+    const changeSection = document.getElementById('password-change-fields');
+    if (changeSection) {
+        changeSection.classList.toggle('hidden');
+    }
+}
+
+// Change password
+async function changePassword() {
+    const newPassword = document.getElementById('new-password').value;
+    const confirmPassword = document.getElementById('confirm-new-password').value;
+    
+    if (!newPassword || !confirmPassword) {
+        showMessage('password-change-message', 'कृपया सभी फील्ड भरें', 'error');
+        return;
+    }
+    
+    if (newPassword.length < 6) {
+        showMessage('password-change-message', 'पासवर्ड कम से कम 6 अक्षर का होना चाहिए', 'error');
+        return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+        showMessage('password-change-message', 'पासवर्ड मेल नहीं खा रहे हैं', 'error');
+        return;
+    }
+    
+    try {
+        await auth.currentUser.updatePassword(newPassword);
+        showMessage('password-change-message', 'पासवर्ड सफलतापूर्वक बदल गया!', 'success');
+        
+        // Clear fields
+        document.getElementById('new-password').value = '';
+        document.getElementById('confirm-new-password').value = '';
+        
+    } catch (error) {
+        console.error('Change Password Error:', error);
+        showMessage('password-change-message', 'पासवर्ड बदलने में समस्या आई', 'error');
+    }
+}
+
+// Save bank details
+async function saveBankDetails() {
+    const accountHolder = document.getElementById('account-holder').value.trim();
+    const accountNumber = document.getElementById('account-number').value.trim();
+    const ifscCode = document.getElementById('ifsc-code').value.trim();
+    const bankName = document.getElementById('bank-name').value.trim();
+    
+    if (!accountHolder || !accountNumber || !ifscCode || !bankName) {
+        showMessage('bank-details-message', 'कृपया सभी बैंक विवरण भरें', 'error');
+        return;
+    }
+    
+    try {
+        await db.collection(USERS_COLLECTION).doc(currentUser).update({
+            bankDetails: {
+                accountHolder: accountHolder,
+                accountNumber: accountNumber,
+                ifscCode: ifscCode,
+                bankName: bankName,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }
+        });
+        
+        showMessage('bank-details-message', 'बैंक डिटेल्स सफलतापूर्वक सेव हो गए!', 'success');
+        
+    } catch (error) {
+        console.error('Save Bank Details Error:', error);
+        showMessage('bank-details-message', 'बैंक डिटेल्स सेव करने में समस्या', 'error');
+    }
+}
+
+// Toggle notification panel
+function toggleNotificationPanel() {
+    const panel = document.getElementById('notification-panel');
+    if (panel) {
+        panel.classList.toggle('hidden');
+    }
 }
 
 // Logout
@@ -580,19 +753,26 @@ function logout() {
 // === 🚀 INITIALIZATION ===
 // =======================================================
 
-// Auth state listener
+// Auth state listener - YEH IMPORTANT FIX HAI
 auth.onAuthStateChanged((user) => {
+    console.log('Auth state changed:', user ? 'User signed in' : 'User signed out');
+    
     if (user) {
         console.log('User signed in:', user.email);
         loadUserData(user.uid);
+        // Dashboard automatically show hoga loadUserData ke through
     } else {
-        console.log('User signed out');
-        showPage('login-page');
+        console.log('User signed out - showing login page');
+        showPage('login-page'); // YEH LINE ADD KARNA IMPORTANT HAI
     }
 });
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Fund Money App Initialized');
-    showPage('login-page');
+    console.log('🚀 Fund Money App Initialized');
+    
+    // Initially show login page after short delay
+    setTimeout(() => {
+        showPage('login-page');
+    }, 100);
 });
